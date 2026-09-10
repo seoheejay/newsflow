@@ -82,6 +82,9 @@ newsflow/
 - 목록 응답은 `{ total_count, page, items_per_page, items }`
 - 오류 응답은 `{ code, message, fields? }`
 
+입력값 오류는 FastAPI 기본값인 422가 아니라 **400**으로 응답한다 (SRS 부록 C.2).
+프론트는 `detail`이 아니라 `code`를 읽는다.
+
 상세 명세는 `docs/` 의 SRS 부록 A 참조.
 
 ### 상태 코드
@@ -94,6 +97,7 @@ newsflow/
 | 삭제 성공 | 204 |
 | 입력값 오류 | 400 |
 | 없는 리소스 | 404 |
+| 충돌 (이름 중복, 실행 진행 중) | 409 |
 
 ### 커밋 메시지
 
@@ -148,7 +152,7 @@ feat/frontend-articles  프론트 작업
 | 증상 | 원인 |
 |---|---|
 | 브라우저 콘솔에만 에러, 서버 로그엔 없음 | CORS 미설정 |
-| 422가 계속 남 | `Content-Type: application/json` 헤더 누락 |
+| 400 `VALIDATION_ERROR`가 계속 남 | `Content-Type: application/json` 헤더 누락 |
 | 특정 경로만 404 | 라우터 등록 순서 (`/{id}`가 위에 있음) |
 | `res.json()`에서 에러 | 204 응답은 본문이 없음 |
 | 필드가 undefined | snake_case 확인 |

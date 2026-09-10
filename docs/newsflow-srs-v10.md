@@ -1,7 +1,7 @@
 # 소프트웨어 요구사항 명세서 (SRS)
 
 **시스템명** 뉴스 스크랩 자동화 시스템 (NewsFlow)
-**문서 버전** 1.0
+**문서 버전** 1.1
 **작성 기준** NewsFlow URS v0.2
 **표준** IEEE 29148 (SRS) 구조를 따름
 **대상 릴리스** 1차 릴리스 (2인 · 7일)
@@ -298,7 +298,19 @@
 | `mail_subject` | 문자열(200) | 예 | 발송 메일 제목 |
 | `mail_to` | 문자열(255) | 예 | 수신자 주소 |
 | `max_per_source` | 정수 | 예 | 소스당 최대 수집 건수 |
-| `keywords` | 문자열 목록 | 예 | 검색 키워드 |
+| `user_id` | 문자열(26) | 예 | 사용자 구분. 단일 값 운용 |
+
+**키워드 (Keyword)**
+
+| 항목 | 형식 | 필수 | 설명 |
+|---|---|---|---|
+| `id` | 문자열(26) | 예 | 식별자 |
+| `value` | 문자열(64) | 예 | 검색 키워드 |
+| `user_id` | 문자열(26) | 예 | 사용자 구분. 단일 값 운용 |
+
+> 키워드는 설정과 별도 엔터티로 보관한다. 중복 등록 불가(SR-F-103)를 유일 제약으로 표현하기 위함이다.
+> **API 계약은 이 분리에 영향받지 않는다** — `GET /settings`는 여전히
+> `"keywords": ["AI", "반도체", "백엔드"]` 형태의 배열을 반환한다 (SR-F-101, 부록 A.3).
 
 **피드 소스 (FeedSource)**
 
@@ -309,6 +321,7 @@
 | `url_template` | 문자열(1000) | 예 | 주소 템플릿 |
 | `sort_order` | 정수 | 예 | 정렬 순서 |
 | `is_active` | 불리언 | 예 | 활성 여부 |
+| `user_id` | 문자열(26) | 예 | 사용자 구분. 단일 값 운용 |
 
 **기사 (Article)**
 
@@ -337,6 +350,10 @@
 | `new_count` | 정수 | 예 | 신규 건수 |
 | `error` | 문자열 | 아니오 | 실패 사유 |
 | `node_logs` | JSON | 아니오 | 소스별 처리 결과 |
+| `user_id` | 문자열(26) | 예 | 사용자 구분. 단일 값 운용 |
+
+> 모든 엔터티가 `user_id`를 가진다 (UR-DAT-07). 본 릴리스에서는 단일 값으로만 운용하며,
+> 이후 계정 기능 추가 시 스키마 변경을 피하기 위한 사전 조치다.
 
 ### 5.2 데이터 무결성
 
@@ -348,6 +365,7 @@
 | SR-D-204 | 기사 본문 전문은 저장하지 않는다 | UR-DAT-05 |
 | SR-D-205 | 문자 집합은 다국어 문자와 이모지를 저장할 수 있어야 한다 | — |
 | SR-D-206 | 스키마 변경은 이력으로 관리되어야 한다 | UR-NFR-08 |
+| SR-D-207 | `Keyword`의 `(user_id, value)`에는 유일 제약이 설정되어야 한다 | UR-CFG-01 |
 
 ---
 
@@ -395,7 +413,7 @@
 
 | URS ID | SRS ID | 검증 항목 | 구분 |
 |---|---|---|---|
-| UR-CFG-01 | SR-F-101~103, SR-I-101 | AC-07 | 기능 |
+| UR-CFG-01 | SR-F-101~103, SR-I-101, SR-D-207 | AC-07 | 기능 |
 | UR-CFG-02 | SR-F-201, 206, SR-I-102 | — | 기능 |
 | UR-CFG-03 | SR-F-201, 202, 205 | — | 기능 |
 | UR-CFG-04 | SR-F-203, 204 | AC-01 | 기능 |
@@ -447,7 +465,7 @@
 | UR-DAT-04 | SR-D-203, SR-I-303 | — | 데이터 |
 | UR-DAT-05 | SR-D-204 | — | 데이터 |
 | UR-DAT-06 | 5.1절 Article.summary | — | 데이터 |
-| UR-DAT-07 | 5.1절 Article.user_id | — | 데이터 |
+| UR-DAT-07 | 5.1절 전 엔터티 user_id | — | 데이터 |
 
 URS v0.2의 필수·여유 요구사항 51개가 모두 대응되어 누락이 없음을 확인한다.
 
@@ -481,6 +499,10 @@ URS v0.2의 필수·여유 요구사항 51개가 모두 대응되어 누락이 �
 | `from` | 일자 | — | 수집일 시작 (포함) |
 | `to` | 일자 | — | 수집일 종료 (포함) |
 
+> 모든 목록 응답은 `{ total_count, page, items_per_page, items }` 형식을 따른다 (SR-I-304).
+> 단 `GET /feed-sources`의 `items_per_page` 기본값은 **100**이다 — ASM-04가 피드 소스를 20개 이하로
+> 한정하므로 관리 화면(SR-I-102)이 한 페이지로 전부 조회할 수 있어야 한다.
+
 ### A.3 응답 예시
 
 **GET /settings**
@@ -497,15 +519,20 @@ URS v0.2의 필수·여유 요구사항 51개가 모두 대응되어 누락이 �
 **GET /feed-sources**
 
 ```json
-[
-  {
-    "id": "01M1AZNKGPJ5VR5FJSY78RCHT3",
-    "name": "구글",
-    "url_template": "https://news.google.com/rss/search?q={keyword}&hl=ko&gl=KR&ceid=KR:ko",
-    "sort_order": 1,
-    "is_active": true
-  }
-]
+{
+  "total_count": 1,
+  "page": 1,
+  "items_per_page": 100,
+  "items": [
+    {
+      "id": "01M1AZNKGPJ5VR5FJSY78RCHT3",
+      "name": "구글",
+      "url_template": "https://news.google.com/rss/search?q={keyword}&hl=ko&gl=KR&ceid=KR:ko",
+      "sort_order": 1,
+      "is_active": true
+    }
+  ]
+}
 ```
 
 **GET /articles**
@@ -647,3 +674,4 @@ gclid         ref           oc
 | 버전 | 일자 | 내용 |
 |---|---|---|
 | 1.0 | | 최초 작성. URS v0.2 기반 |
+| 1.1 | 2026-09-10 | 목록 응답 형식을 봉투로 통일(부록 A.2, A.3). Setting에서 키워드를 별도 엔터티로 분리하고 SR-D-207 추가. 전 엔터티에 user_id 명시 |
