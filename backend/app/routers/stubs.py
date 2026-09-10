@@ -20,7 +20,12 @@ def get_settings() -> dict:
 
 
 @router.get("/articles")  # TODO(SR-F-601~606): 기사 조회
-def get_articles(page: int = 1, items_per_page: int = 20) -> dict:
+def get_articles(
+    page: int = 1,
+    items_per_page: int = 20,
+    keyword: str | None = None,  # SR-F-603
+    site: str | None = None,  # SR-F-603
+) -> dict:
     return {
         "total_count": 0,
         "page": page,
