@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from app.db import SessionLocal
 from app.services.collector import DEFAULT_TIMEOUT_SECONDS, MAX_CONCURRENCY
@@ -39,6 +40,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--store",
         action="store_true",
         help="전달 대상을 저장한다 (SR-F-601). 두 번 실행하면 AC-04를 확인할 수 있다.",
+    )
+    parser.add_argument(
+        "--send",
+        action="store_true",
+        help="전달 대상을 메일로 발송한다 (SR-F-506). 신규 0건이면 생략한다 (SR-F-507).",
+    )
+    parser.add_argument(
+        "--mail-to",
+        metavar="주소",
+        help="수신자. 설정의 mail_to 대신 쓴다 (SR-F-506).",
+    )
+    parser.add_argument(
+        "--subject",
+        metavar="제목",
+        help="메일 제목. 설정의 mail_subject 대신 쓴다.",
+    )
+    parser.add_argument(
+        "--save-html",
+        metavar="경로",
+        help="발송하지 않고 HTML 본문을 파일로 저장한다 (AC-02 대조용).",
     )
     parser.add_argument(
         "--timeout",
@@ -80,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
             keywords=args.keywords,
             max_per_source=args.max_per_source,
             store=args.store,
+            send=args.send,
+            mail_to=args.mail_to,
+            mail_subject=args.subject,
             timeout=args.timeout,
             max_concurrency=args.concurrency,
             retries=args.retries,
@@ -93,9 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n주소 {len(result.targets)}개")
     print("-" * 72)
     for log in result.node_logs:
-        keyword = log.keyword or "-"
         status = f"실패: {log.error}" if log.error else f"{log.count}건"
-        print(f"  {log.site:<12} {keyword:<12} {status:<28} {log.elapsed_ms:>6}ms")
+        print(f"  {log.site:<12} {log.keyword:<12} {status:<28} {log.elapsed_ms:>6}ms")
 
     print("-" * 72)
     print(f"  수집          {result.collected_count}건")
@@ -106,8 +129,20 @@ def main(argv: list[str] | None = None) -> int:
     elif result.new_count:
         print("  저장          안 함 — 저장하려면 --store")
 
+    if args.send:
+        if result.sent:
+            print("  발송          완료   (SR-F-506)")
+        elif not result.new_count and not result.failed:
+            print("  발송          생략 — 신규 0건 (SR-F-507)")
+
+    if args.save_html and result.new_items:
+        from app.services.mailer import render_html
+
+        Path(args.save_html).write_text(render_html(result.new_items), encoding="utf-8")
+        print(f"  HTML 저장     {args.save_html}")
+
     if result.failed:
-        print("\n전체 주소 수집 실패. 실행을 실패로 처리한다 (SR-F-310).")
+        print(f"\n실행 실패: {result.error}")
         return 2
 
     if result.new_items:
@@ -117,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
             published = (
                 item.published_at.strftime("%Y-%m-%d %H:%M") if item.published_at else "-"
             )
-            print(f"  [{item.keyword or '-'}] {item.site:<10} {published:<17} {item.title[:40]}")
+            print(f"  [{item.keyword}] {item.site:<10} {published:<17} {item.title[:40]}")
 
     return 0
 

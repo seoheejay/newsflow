@@ -27,9 +27,9 @@ MAX_CONCURRENCY = 3
 # SR-I-202. 대상 사이트가 누구의 요청인지 알 수 있어야 한다.
 USER_AGENT = "NewsFlow/0.1 (+https://github.com/seoheejay/newsflow)"
 
-# SR-F-205로 키워드 없이 조회되는 소스의 keyword 값.
-# Article.keyword는 필수(SRS 5.1)라 빈 문자열을 쓴다.
-NO_KEYWORD = ""
+# SR-F-205로 키워드 없이 조회되는 소스의 keyword 값 (SRS 5.1).
+# 저장값과 메일 표시값이 같아야 하므로 표시 단계에서 변환하지 않는다.
+NO_KEYWORD = "(전체)"
 
 
 @dataclass(frozen=True)
