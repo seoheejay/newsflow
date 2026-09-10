@@ -28,7 +28,12 @@ def get_feed_sources():
 
 
 @app.get("/articles")
-def get_articles(page: int = 1, items_per_page: int = 20):
+def get_articles(
+    page: int = 1,
+    items_per_page: int = 20,
+    keyword: str | None = None,
+    site: str | None = None,
+):
     return {
         "total_count": 0,
         "page": page,
