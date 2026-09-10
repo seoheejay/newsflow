@@ -13,7 +13,9 @@ dependencies = [
     "alembic (>=1.19.2,<2.0.0)",
     "pymysql[rsa] (>=1.2.0,<2.0.0)",
     "python-ulid (>=4.0.1,<5.0.0)",
-    "pydantic-settings (>=2.15.0,<3.0.0)"
+    "pydantic-settings (>=2.15.0,<3.0.0)",
+    "feedparser (>=6.0.14,<7.0.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
 
 
