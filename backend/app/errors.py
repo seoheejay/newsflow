@@ -59,6 +59,14 @@ class DuplicateNameError(AppError):
     message = "이미 사용 중인 표시명입니다"
 
 
+class EmailSendFailedError(AppError):
+    """SR-F-508."""
+
+    status_code = 500
+    code = "EMAIL_SEND_FAILED"
+    message = "메일 발송에 실패했습니다"
+
+
 class ExecutionInProgressError(AppError):
     """SR-F-705. 아직 사용처는 없지만 코드 표(부록 C.2)를 한자리에 모아둔다."""
 
