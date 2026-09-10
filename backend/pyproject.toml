@@ -20,6 +20,11 @@ dependencies = [
 ]
 
 
+[tool.poetry]
+# 배포용 패키지가 아니라 애플리케이션이다. 이 줄이 없으면 poetry install이
+# backend 패키지를 찾다가 실패한다 (docs/README.md의 설치 절차, SR-N-403).
+package-mode = false
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -29,6 +34,5 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
-    "pytest (>=9.1.1,<10.0.0)",
-    "httpx (>=0.28.1,<0.29.0)"
+    "pytest (>=9.1.1,<10.0.0)"
 ]
