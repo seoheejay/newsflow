@@ -4,6 +4,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.constants import DEFAULT_USER_ID
+from app.errors import EmailSendFailedError
 from app.models import Article, FeedSource, Keyword, Setting
 from app.services.link_normalize import link_hash
 from app.services.pipeline import DEFAULT_MAX_PER_SOURCE, run_collection
@@ -181,3 +182,143 @@ def test_SR_F_310_failed_run_stores_nothing(db_session: Session) -> None:
     run_collection(db_session, store=True, client=_failing_client())
 
     assert db_session.query(Article).count() == 0
+
+
+# ----------------------------------------------------------------- 메일 발송
+
+
+class _Sender:
+    """mailer.send_mail 대체."""
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[dict] = []
+
+    def __call__(self, *, subject, mail_to, items):
+        self.calls.append({"subject": subject, "mail_to": mail_to, "items": items})
+        if self.error:
+            raise self.error
+
+
+def _seed_setting(db: Session, *, mail_to: str = "me@example.com") -> None:
+    db.add(
+        Setting(
+            id="01SSSSSSSSSSSSSSSSSSSSSSSS",
+            mail_subject="오늘의 뉴스",
+            mail_to=mail_to,
+            max_per_source=10,
+            user_id=DEFAULT_USER_ID,
+        )
+    )
+    db.commit()
+
+
+def test_SR_F_506_sends_to_configured_recipient_with_configured_subject(
+    db_session: Session,
+) -> None:
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender()
+
+    result = run_collection(
+        db_session, send=True, mail_sender=sender, client=_rss_client()
+    )
+
+    assert result.sent is True
+    assert len(sender.calls) == 1
+    assert sender.calls[0]["mail_to"] == "me@example.com"
+    assert sender.calls[0]["subject"] == "오늘의 뉴스"
+    assert len(sender.calls[0]["items"]) == 2
+
+
+def test_SR_F_506_cli_arguments_override_the_setting(db_session: Session) -> None:
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender()
+
+    run_collection(
+        db_session,
+        send=True,
+        mail_to="other@example.com",
+        mail_subject="임시 제목",
+        mail_sender=sender,
+        client=_rss_client(),
+    )
+
+    assert sender.calls[0]["mail_to"] == "other@example.com"
+    assert sender.calls[0]["subject"] == "임시 제목"
+
+
+def test_SR_F_506_missing_recipient_fails_the_run(db_session: Session) -> None:
+    _seed(db_session)  # Setting 행이 없다
+    sender = _Sender()
+
+    result = run_collection(
+        db_session, send=True, mail_sender=sender, client=_rss_client()
+    )
+
+    assert result.failed is True
+    assert result.sent is False
+    assert sender.calls == []
+    assert "수신자" in result.error
+
+
+def test_SR_F_507_no_new_articles_skips_send_and_succeeds(
+    db_session: Session,
+) -> None:
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender()
+
+    # 1회차로 전부 저장하면 2회차의 신규는 0건이다.
+    run_collection(db_session, store=True, client=_rss_client())
+    result = run_collection(
+        db_session, send=True, mail_sender=sender, client=_rss_client()
+    )
+
+    assert result.new_count == 0
+    assert sender.calls == []  # 발송하지 않는다
+    assert result.sent is False
+    assert result.failed is False  # success로 끝난다
+    assert result.error is None
+
+
+def test_SR_F_508_send_failure_fails_the_run_and_records_the_reason(
+    db_session: Session,
+) -> None:
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender(error=EmailSendFailedError("SMTP 인증 실패"))
+
+    result = run_collection(
+        db_session, send=True, mail_sender=sender, client=_rss_client()
+    )
+
+    assert result.failed is True
+    assert result.sent is False
+    assert result.error == "SMTP 인증 실패"
+
+
+def test_SR_F_508_send_failure_does_not_undo_storage(db_session: Session) -> None:
+    # 저장은 발송보다 앞선다(부록 B.1 13단계 → 16단계). 발송이 실패해도
+    # 저장된 기사는 남고, 다음 실행에서 다시 전달되지 않는다.
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender(error=EmailSendFailedError("SMTP 실패"))
+
+    run_collection(
+        db_session, store=True, send=True, mail_sender=sender, client=_rss_client()
+    )
+
+    assert db_session.query(Article).count() == 2
+
+
+def test_send_is_opt_in(db_session: Session) -> None:
+    _seed(db_session)
+    _seed_setting(db_session)
+    sender = _Sender()
+
+    result = run_collection(db_session, mail_sender=sender, client=_rss_client())
+
+    assert sender.calls == []
+    assert result.sent is False

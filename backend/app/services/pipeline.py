@@ -15,8 +15,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.constants import DEFAULT_USER_ID
+from app.errors import EmailSendFailedError
 from app.models import FeedSource, Keyword, Setting
-from app.services import processing
+from app.services import mailer, processing
 from app.services.collector import (
     CollectedItem,
     CollectTarget,
@@ -27,6 +28,7 @@ from app.services.collector import (
 
 # Setting 행이 아직 없을 때 쓰는 값. 부록 A.3의 예시와 같다.
 DEFAULT_MAX_PER_SOURCE = 10
+DEFAULT_MAIL_SUBJECT = "오늘의 뉴스"
 
 
 @dataclass
@@ -36,8 +38,10 @@ class CollectionResult:
     collected_count: int = 0  # 수집 건수 (중복 제거 전)
     deduped_count: int = 0  # 실행 내 중복 제거 후
     new_items: list[CollectedItem] = field(default_factory=list)  # 전달 대상
-    failed: bool = False  # SR-F-310
+    failed: bool = False  # SR-F-310, SR-F-508
     stored: bool = False
+    sent: bool = False
+    error: str | None = None  # 실패 사유 (SR-F-703의 error에 들어갈 값)
 
     @property
     def new_count(self) -> int:
@@ -72,20 +76,36 @@ def load_max_per_source(db: Session, user_id: str = DEFAULT_USER_ID) -> int:
     return value if value is not None else DEFAULT_MAX_PER_SOURCE
 
 
+def load_mail_settings(
+    db: Session, user_id: str = DEFAULT_USER_ID
+) -> tuple[str, str | None]:
+    """(제목, 수신자). 설정 행이 없으면 수신자는 None이다 (SR-F-506)."""
+    row = db.execute(
+        select(Setting.mail_subject, Setting.mail_to).where(Setting.user_id == user_id)
+    ).first()
+    if row is None:
+        return DEFAULT_MAIL_SUBJECT, None
+    return (row.mail_subject or DEFAULT_MAIL_SUBJECT), row.mail_to
+
+
 def run_collection(
     db: Session,
     *,
     keywords: list[str] | None = None,
     max_per_source: int | None = None,
     store: bool = False,
+    send: bool = False,
+    mail_to: str | None = None,
+    mail_subject: str | None = None,
+    mail_sender=None,
     user_id: str = DEFAULT_USER_ID,
     **collect_kwargs,
 ) -> CollectionResult:
-    """부록 B.1의 5~14단계를 수행한다.
+    """부록 B.1의 5~17단계를 수행한다.
 
     keywords/max_per_source를 주면 DB 값 대신 쓴다(스크립트 실행용).
-    store=True면 전달 대상을 저장한다(SR-F-601). 기본값은 False다 —
-    이번 슬라이스의 요청 범위는 SR-F-3xx/4xx이므로 쓰기는 명시적으로만 한다.
+    store=True면 전달 대상을 저장한다(SR-F-601).
+    send=True면 메일을 발송한다(SR-F-506). mail_sender는 테스트용 주입점이다.
     """
     result = CollectionResult()
 
@@ -109,6 +129,7 @@ def run_collection(
     # SR-F-310: 전부 실패면 실행 실패. 이후 단계를 진행하지 않는다.
     if outcome.all_failed:
         result.failed = True
+        result.error = "전체 주소 수집 실패"
         return result
 
     # 10~11단계: 정규화·해시는 수집 시점에 끝났고, 여기서 실행 내 중복을 제거한다 (SR-F-404)
@@ -131,5 +152,30 @@ def run_collection(
         )
         db.commit()
         result.stored = True
+
+    # 15단계: 신규 0건이면 발송을 생략하고 success로 끝낸다 (SR-F-507).
+    if not result.new_items:
+        return result
+
+    # 16단계: HTML 본문 생성 및 발송 (SR-F-501, 506)
+    if send:
+        subject, configured_to = load_mail_settings(db, user_id)
+        recipient = mail_to or configured_to
+        subject = mail_subject or subject
+
+        if not recipient:
+            result.failed = True
+            result.error = "수신자가 없다. 설정에 mail_to를 넣거나 인자로 넘길 것"
+            return result
+
+        sender = mail_sender or mailer.send_mail
+        try:
+            sender(subject=subject, mail_to=recipient, items=result.new_items)
+        except EmailSendFailedError as exc:
+            # SR-F-508: 발송 실패는 실행 실패이고 사유를 남긴다.
+            result.failed = True
+            result.error = exc.message
+            return result
+        result.sent = True
 
     return result
