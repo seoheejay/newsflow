@@ -23,8 +23,13 @@ def get_settings():
 
 
 @app.get("/feed-sources")
-def get_feed_sources():
-    return []
+def get_feed_sources(page: int = 1, items_per_page: int = 20):
+    return {
+        "total_count": 0,
+        "page": page,
+        "items_per_page": items_per_page,
+        "items": [],
+    }
 
 
 @app.get("/articles")

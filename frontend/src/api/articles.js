@@ -12,6 +12,10 @@ export function getSettings({ signal } = {}) {
   return request('/settings', { signal })
 }
 
-export function getFeedSources({ signal } = {}) {
-  return request('/feed-sources', { signal })
+// 목록 응답은 봉투 형태 { total_count, page, items_per_page, items }
+export function getFeedSources({ page = 1, itemsPerPage = 20 } = {}, { signal } = {}) {
+  return request('/feed-sources', {
+    params: { page, items_per_page: itemsPerPage },
+    signal,
+  })
 }

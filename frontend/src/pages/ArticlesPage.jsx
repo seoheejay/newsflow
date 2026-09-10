@@ -25,8 +25,9 @@ export default function ArticlesPage() {
     getSettings({ signal: controller.signal })
       .then((s) => setKeywordOptions(s?.keywords ?? []))
       .catch(() => setKeywordOptions([]))
-    getFeedSources({ signal: controller.signal })
-      .then((list) => setSiteOptions((list ?? []).map((f) => f.name)))
+    // 피드 소스는 20개 이하(ASM-04)이므로 최대 페이지 크기로 한 번에 받는다
+    getFeedSources({ itemsPerPage: 100 }, { signal: controller.signal })
+      .then((res) => setSiteOptions((res?.items ?? []).map((f) => f.name)))
       .catch(() => setSiteOptions([]))
     return () => controller.abort()
   }, [])
