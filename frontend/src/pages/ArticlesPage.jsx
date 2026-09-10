@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { getArticles, getFeedSources, getSettings } from '../api/articles.js'
+import { getArticles } from '../api/articles.js'
+import { listFeedSources } from '../api/feedSources.js'
+import { getSettings } from '../api/settings.js'
 import ArticleFilters from '../components/ArticleFilters.jsx'
 import ArticleTable from '../components/ArticleTable.jsx'
+import CollectPanel from '../components/CollectPanel.jsx'
 import Pagination from '../components/Pagination.jsx'
 
 const EMPTY_PAGE = { total_count: 0, page: 1, items_per_page: 20, items: [] }
@@ -9,9 +12,10 @@ const EMPTY_PAGE = { total_count: 0, page: 1, items_per_page: 20, items: [] }
 export default function ArticlesPage() {
   const [filters, setFilters] = useState({ keyword: '', site: '', itemsPerPage: 20 })
   const [page, setPage] = useState(1)
+  const [refreshKey, setRefreshKey] = useState(0) // 수집 완료 후 재조회용
 
   // 조회 조건을 키로 만들어, 마지막으로 도착한 결과가 현재 조건의 것인지 판별한다
-  const queryKey = JSON.stringify({ page, ...filters })
+  const queryKey = JSON.stringify({ page, refreshKey, ...filters })
   const [result, setResult] = useState({ key: null, data: EMPTY_PAGE, error: null })
   const loading = result.key !== queryKey
   const error = result.error
@@ -26,7 +30,7 @@ export default function ArticlesPage() {
       .then((s) => setKeywordOptions(s?.keywords ?? []))
       .catch(() => setKeywordOptions([]))
     // 피드 소스는 20개 이하(ASM-04)이므로 최대 페이지 크기로 한 번에 받는다
-    getFeedSources({ itemsPerPage: 100 }, { signal: controller.signal })
+    listFeedSources({ itemsPerPage: 100 }, { signal: controller.signal })
       .then((res) => setSiteOptions((res?.items ?? []).map((f) => f.name)))
       .catch(() => setSiteOptions([]))
     return () => controller.abort()
@@ -64,6 +68,8 @@ export default function ArticlesPage() {
   return (
     <section className="articles-page">
       <h1>기사 목록</h1>
+
+      <CollectPanel onFinished={() => setRefreshKey((k) => k + 1)} />
 
       <ArticleFilters
         keywords={keywordOptions}

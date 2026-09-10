@@ -19,6 +19,16 @@ def get_settings() -> dict:
     }
 
 
+@router.put("/settings")  # TODO(SR-F-101~107): 설정 변경. 지금은 받은 값을 그대로 돌려준다
+def put_settings(payload: dict) -> dict:
+    return {
+        "mail_subject": payload.get("mail_subject", ""),
+        "mail_to": payload.get("mail_to", ""),
+        "max_per_source": payload.get("max_per_source", 10),
+        "keywords": payload.get("keywords", []),
+    }
+
+
 @router.get("/articles")  # TODO(SR-F-601~606): 기사 조회
 def get_articles(
     page: int = 1,
