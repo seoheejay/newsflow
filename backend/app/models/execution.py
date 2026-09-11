@@ -12,6 +12,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.constants import DEFAULT_USER_ID
 from app.db import MYSQL_TABLE_ARGS, Base
 
+# SR-F-702. 부록 B.2의 상태 전이. success와 failed는 최종 상태다.
+STATUS_QUEUED = "queued"
+STATUS_RUNNING = "running"
+STATUS_SUCCESS = "success"
+STATUS_FAILED = "failed"
+
+FINAL_STATUSES = frozenset({STATUS_SUCCESS, STATUS_FAILED})
+ACTIVE_STATUSES = frozenset({STATUS_QUEUED, STATUS_RUNNING})
+
 
 class Execution(Base):
     __tablename__ = "executions"
