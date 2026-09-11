@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import ArticlesPage from './pages/ArticlesPage.jsx'
 import FeedSourcesPage from './pages/FeedSourcesPage.jsx'
+import ExecutionsPage from './pages/ExecutionsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 
-// 라우터 라이브러리 없이 해시로 화면을 나눈다. 화면이 3개뿐이라 충분하다.
+// 라우터 라이브러리 없이 해시로 화면을 나눈다. 화면 수가 적어 충분하다.
 const ROUTES = [
   { hash: '#/articles', label: '기사', Page: ArticlesPage },
   { hash: '#/feed-sources', label: '피드 소스', Page: FeedSourcesPage },
+  { hash: '#/executions', label: '실행 이력', Page: ExecutionsPage },
   { hash: '#/settings', label: '설정', Page: SettingsPage },
 ]
 

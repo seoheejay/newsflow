@@ -452,3 +452,47 @@ h2 {
   min-width: 64px;
   text-align: center;
 }
+
+/* 실행 이력 · 설정 화면 추가 요소 */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+}
+.cell-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px 12px !important;
+}
+.cell--reason {
+  max-width: 320px;
+}
+.articles tbody tr.row--failed td {
+  background: var(--danger-bg, #fff5f5);
+}
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent, #1a56c4);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+.time-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.time-input input {
+  width: 80px;
+}
+.time-input__sep {
+  color: var(--text-muted);
+}
