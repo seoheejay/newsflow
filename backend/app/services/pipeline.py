@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.constants import DEFAULT_USER_ID
 from app.errors import EmailSendFailedError
-from app.models import FeedSource, Keyword, Setting
-from app.services import mailer, processing
+from app.models import FeedSource
+from app.services import mailer, processing, settings_store
 from app.services.collector import (
     CollectedItem,
     CollectTarget,
@@ -25,10 +25,9 @@ from app.services.collector import (
     build_targets,
     collect,
 )
+from app.services.settings_store import DEFAULT_MAIL_SUBJECT, DEFAULT_MAX_PER_SOURCE
 
-# Setting 행이 아직 없을 때 쓰는 값. 부록 A.3의 예시와 같다.
-DEFAULT_MAX_PER_SOURCE = 10
-DEFAULT_MAIL_SUBJECT = "오늘의 뉴스"
+__all__ = ["CollectionResult", "run_collection", "DEFAULT_MAX_PER_SOURCE"]
 
 
 @dataclass
@@ -48,16 +47,6 @@ class CollectionResult:
         return len(self.new_items)
 
 
-def load_keywords(db: Session, user_id: str = DEFAULT_USER_ID) -> list[str]:
-    return list(
-        db.scalars(
-            select(Keyword.value)
-            .where(Keyword.user_id == user_id)
-            .order_by(Keyword.value.asc())
-        ).all()
-    )
-
-
 def load_active_feed_sources(
     db: Session, user_id: str = DEFAULT_USER_ID
 ) -> list[tuple[str, str, int]]:
@@ -70,22 +59,12 @@ def load_active_feed_sources(
     return [(r.name, r.url_template, r.sort_order) for r in rows]
 
 
-def load_max_per_source(db: Session, user_id: str = DEFAULT_USER_ID) -> int:
-    """설정이 아직 없으면 기본값을 쓴다 (SR-F-1xx는 다음 슬라이스)."""
-    value = db.scalar(select(Setting.max_per_source).where(Setting.user_id == user_id))
-    return value if value is not None else DEFAULT_MAX_PER_SOURCE
-
-
 def load_mail_settings(
     db: Session, user_id: str = DEFAULT_USER_ID
 ) -> tuple[str, str | None]:
-    """(제목, 수신자). 설정 행이 없으면 수신자는 None이다 (SR-F-506)."""
-    row = db.execute(
-        select(Setting.mail_subject, Setting.mail_to).where(Setting.user_id == user_id)
-    ).first()
-    if row is None:
-        return DEFAULT_MAIL_SUBJECT, None
-    return (row.mail_subject or DEFAULT_MAIL_SUBJECT), row.mail_to
+    """(제목, 수신자). 제목이 비어 있으면 기본값을, 수신자가 없으면 None을 준다."""
+    data = settings_store.load_settings(db, user_id)
+    return (data.mail_subject or DEFAULT_MAIL_SUBJECT), (data.mail_to or None)
 
 
 def run_collection(
@@ -110,10 +89,11 @@ def run_collection(
     result = CollectionResult()
 
     # 5단계: 설정 및 활성 피드 소스 조회
+    stored = settings_store.load_settings(db, user_id)
     if keywords is None:
-        keywords = load_keywords(db, user_id)
+        keywords = stored.keywords
     if max_per_source is None:
-        max_per_source = load_max_per_source(db, user_id)
+        max_per_source = stored.max_per_source
     feed_sources = load_active_feed_sources(db, user_id)
 
     # 6단계: 수집 주소 생성 (SR-F-301)

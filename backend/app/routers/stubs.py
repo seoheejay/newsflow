@@ -9,24 +9,7 @@ from fastapi import APIRouter
 router = APIRouter(tags=["stubs"])
 
 
-@router.get("/settings")  # TODO(SR-F-101): 설정 조회
-def get_settings() -> dict:
-    return {
-        "mail_subject": "",
-        "mail_to": "",
-        "max_per_source": 10,
-        "keywords": [],
-    }
-
-
-@router.put("/settings")  # TODO(SR-F-101~107): 설정 변경. 지금은 받은 값을 그대로 돌려준다
-def put_settings(payload: dict) -> dict:
-    return {
-        "mail_subject": payload.get("mail_subject", ""),
-        "mail_to": payload.get("mail_to", ""),
-        "max_per_source": payload.get("max_per_source", 10),
-        "keywords": payload.get("keywords", []),
-    }
+# /settings 는 app/routers/settings.py 로 옮겼다 (SR-F-101~107).
 
 
 @router.get("/articles")  # TODO(SR-F-601~606): 기사 조회
