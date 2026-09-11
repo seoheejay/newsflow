@@ -21,3 +21,6 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# AC-01 대조용 내보내기 (scripts/ac01_export.py 산출물)
+/ac01-*

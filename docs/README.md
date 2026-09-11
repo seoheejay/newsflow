@@ -225,6 +225,14 @@ feat/frontend-articles  프론트 작업
 | URS | 사용자 요구사항. 무엇이 필요한가 |
 | SRS | 소프트웨어 요구사항. 시스템이 무엇을 하는가 |
 
+**`.md` 가 원본이고 `.docx` 는 배포본이다.** md 를 고쳤으면 아래를 돌려 docx 를 맞춘다.
+손으로 두 벌을 관리하면 어긋난다 (실제로 어긋난 적이 있다).
+
+```
+cd backend
+poetry run python ../scripts/md_to_docx.py
+```
+
 ---
 
 ## 자주 막히는 지점
