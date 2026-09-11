@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     # Celery 브로커 겸 결과 백엔드. docker-compose의 redis 컨테이너.
     redis_url: str = "redis://127.0.0.1:6379/0"
 
-    # SR-F-802. 자동 실행 시각. 기본값은 Asia/Seoul 08:00.
+    # SR-F-802/805. 자동 실행 시각의 권위는 설정(DB)이다. 여기 값은 설정 행이
+    # 아직 없을 때의 초기값으로만 쓰인다.
     schedule_hour: int = 8
     schedule_minute: int = 0
 

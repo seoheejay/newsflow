@@ -18,6 +18,9 @@ from app.models import Keyword, Setting
 # Setting 행이 아직 없을 때 쓰는 값. 부록 A.3의 예시와 같다.
 DEFAULT_MAX_PER_SOURCE = 10
 DEFAULT_MAIL_SUBJECT = "오늘의 뉴스"
+# SR-F-802. Asia/Seoul 08:00.
+DEFAULT_SCHEDULE_HOUR = 8
+DEFAULT_SCHEDULE_MINUTE = 0
 
 
 @dataclass
@@ -25,6 +28,8 @@ class SettingsData:
     mail_subject: str = ""
     mail_to: str = ""
     max_per_source: int = DEFAULT_MAX_PER_SOURCE
+    schedule_hour: int = DEFAULT_SCHEDULE_HOUR
+    schedule_minute: int = DEFAULT_SCHEDULE_MINUTE
     keywords: list[str] = field(default_factory=list)
 
 
@@ -52,6 +57,8 @@ def load_settings(db: Session, user_id: str = DEFAULT_USER_ID) -> SettingsData:
         mail_subject=row.mail_subject,
         mail_to=row.mail_to,
         max_per_source=row.max_per_source,
+        schedule_hour=row.schedule_hour,
+        schedule_minute=row.schedule_minute,
         keywords=keywords,
     )
 
@@ -71,6 +78,8 @@ def save_settings(
     row.mail_subject = data.mail_subject
     row.mail_to = data.mail_to
     row.max_per_source = data.max_per_source
+    row.schedule_hour = data.schedule_hour
+    row.schedule_minute = data.schedule_minute
 
     incoming = set(data.keywords)
     existing = {

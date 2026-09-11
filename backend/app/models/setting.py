@@ -1,9 +1,6 @@
-"""설정과 키워드 (SRS 5.1 Setting / Keyword).
+"""설정과 키워드 (SRS 5.1 Setting / Keyword)."""
 
-이번 슬라이스에서는 스키마만 정의한다. SR-F-1xx 구현은 이후 작업.
-"""
-
-from sqlalchemy import Integer, String, UniqueConstraint
+from sqlalchemy import Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.constants import DEFAULT_USER_ID
@@ -18,6 +15,13 @@ class Setting(Base):
     mail_subject: Mapped[str] = mapped_column(String(200), nullable=False)
     mail_to: Mapped[str] = mapped_column(String(255), nullable=False)
     max_per_source: Mapped[int] = mapped_column(Integer, nullable=False)
+    # SR-F-802, 805. Asia/Seoul 기준 자동 실행 시각.
+    schedule_hour: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=8, server_default=text("8")
+    )
+    schedule_minute: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     user_id: Mapped[str] = mapped_column(
         String(26), nullable=False, default=DEFAULT_USER_ID
     )

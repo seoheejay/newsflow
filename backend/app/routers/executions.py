@@ -11,7 +11,7 @@ from app.constants import DEFAULT_USER_ID
 from app.db import get_db
 from app.errors import ErrorResponse, ExecutionInProgressError, NotFoundError
 from app.models import Execution
-from app.models.execution import STATUS_FAILED
+from app.models.execution import STATUS_FAILED, TRIGGER_MANUAL
 from app.schemas.common import ListResponse
 from app.schemas.execution import CollectAccepted, ExecutionDetail, ExecutionSummary
 from app.services import execution_store
@@ -37,7 +37,9 @@ def request_collection(db: Session = Depends(get_db)) -> CollectAccepted:
     if execution_store.find_active_id(db, DEFAULT_USER_ID):
         raise ExecutionInProgressError()
 
-    execution = execution_store.create_queued(db, DEFAULT_USER_ID)
+    execution = execution_store.create_queued(
+        db, DEFAULT_USER_ID, trigger=TRIGGER_MANUAL
+    )
 
     try:
         collect_task.delay(execution.id)

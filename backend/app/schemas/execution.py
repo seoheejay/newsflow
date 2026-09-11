@@ -25,6 +25,7 @@ class ExecutionSummary(BaseModel):
     collected_count: int
     new_count: int
     error: str | None
+    trigger: str
 
 
 class ExecutionDetail(ExecutionSummary):

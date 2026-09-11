@@ -16,6 +16,8 @@ def payload(**overrides) -> dict:
         "mail_subject": "오늘의 뉴스",
         "mail_to": "me@example.com",
         "max_per_source": 10,
+        "schedule_hour": 8,
+        "schedule_minute": 0,
         "keywords": ["AI", "반도체"],
     }
     body.update(overrides)
@@ -25,9 +27,16 @@ def payload(**overrides) -> dict:
 # ---------------------------------------------------------------------- 101
 
 
-def test_SR_F_101_get_returns_the_four_fields(client: TestClient) -> None:
+def test_SR_F_101_get_returns_all_fields(client: TestClient) -> None:
     body = client.get("/settings").json()
-    assert set(body) == {"mail_subject", "mail_to", "max_per_source", "keywords"}
+    assert set(body) == {
+        "mail_subject",
+        "mail_to",
+        "max_per_source",
+        "schedule_hour",
+        "schedule_minute",
+        "keywords",
+    }
 
 
 def test_SR_F_101_get_without_a_saved_row_returns_empty_form(
@@ -38,6 +47,8 @@ def test_SR_F_101_get_without_a_saved_row_returns_empty_form(
     assert body["mail_subject"] == ""
     assert body["mail_to"] == ""
     assert body["max_per_source"] == DEFAULT_MAX_PER_SOURCE
+    assert body["schedule_hour"] == 8  # SR-F-802
+    assert body["schedule_minute"] == 0
     assert body["keywords"] == []
 
 

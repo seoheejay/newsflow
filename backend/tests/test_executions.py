@@ -149,6 +149,7 @@ def test_SR_F_706_get_execution_returns_appendix_a3_shape(
         "collected_count",
         "new_count",
         "error",
+        "trigger",
         "node_logs",
     }
     assert body["node_logs"][0]["site"] == "구글"

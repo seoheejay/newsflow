@@ -32,6 +32,8 @@ def update_settings(
             mail_subject=payload.mail_subject,
             mail_to=str(payload.mail_to),
             max_per_source=payload.max_per_source,
+            schedule_hour=payload.schedule_hour,
+            schedule_minute=payload.schedule_minute,
             keywords=payload.keywords,
         ),
         DEFAULT_USER_ID,

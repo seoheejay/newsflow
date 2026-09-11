@@ -1,12 +1,9 @@
-"""실행 이력 (SRS 5.1 Execution).
-
-이번 슬라이스에서는 스키마만 정의한다. SR-F-7xx 구현은 이후 작업.
-"""
+"""실행 이력 (SRS 5.1 Execution)."""
 
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.constants import DEFAULT_USER_ID
@@ -20,6 +17,10 @@ STATUS_FAILED = "failed"
 
 FINAL_STATUSES = frozenset({STATUS_SUCCESS, STATUS_FAILED})
 ACTIVE_STATUSES = frozenset({STATUS_QUEUED, STATUS_RUNNING})
+
+# SR-F-807. 수동 실행과 자동 실행을 구분한다.
+TRIGGER_MANUAL = "manual"
+TRIGGER_SCHEDULED = "scheduled"
 
 
 class Execution(Base):
@@ -36,6 +37,13 @@ class Execution(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     # SR-F-704: 피드 소스별 수집 결과와 소요 시간.
     node_logs: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    # SR-F-807: manual / scheduled
+    trigger: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=TRIGGER_MANUAL,
+        server_default=text(f"'{TRIGGER_MANUAL}'"),
+    )
     user_id: Mapped[str] = mapped_column(
         String(26), nullable=False, default=DEFAULT_USER_ID
     )

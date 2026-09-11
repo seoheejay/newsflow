@@ -7,6 +7,8 @@ KEYWORD_MAX_COUNT = 20  # SR-F-102
 SUBJECT_MAX_LEN = 200  # SR-F-106
 MAX_PER_SOURCE_MIN = 1  # SR-F-105
 MAX_PER_SOURCE_MAX = 100  # SR-F-105
+SCHEDULE_HOUR_MAX = 23  # SR-F-805
+SCHEDULE_MINUTE_MAX = 59  # SR-F-805
 
 
 class SettingsOut(BaseModel):
@@ -15,6 +17,8 @@ class SettingsOut(BaseModel):
     mail_subject: str
     mail_to: str
     max_per_source: int
+    schedule_hour: int
+    schedule_minute: int
     keywords: list[str]
 
 
@@ -28,6 +32,12 @@ class SettingsUpdate(BaseModel):
         ge=MAX_PER_SOURCE_MIN,
         le=MAX_PER_SOURCE_MAX,
         description="소스당 최대 수집 건수 (SR-F-105)",
+    )
+    schedule_hour: int = Field(
+        ge=0, le=SCHEDULE_HOUR_MAX, description="자동 실행 시각의 시. Asia/Seoul (SR-F-805)"
+    )
+    schedule_minute: int = Field(
+        ge=0, le=SCHEDULE_MINUTE_MAX, description="자동 실행 시각의 분 (SR-F-805)"
     )
     keywords: list[str] = Field(
         max_length=KEYWORD_MAX_COUNT, description="검색 키워드 (SR-F-102)"

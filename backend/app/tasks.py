@@ -7,17 +7,26 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 
-from app.clock import utcnow
+from app.clock import KST, utcnow
 from app.constants import DEFAULT_USER_ID
 from app.db import SessionLocal
 from app.models import Execution
-from app.models.execution import STATUS_FAILED, STATUS_RUNNING, STATUS_SUCCESS
-from app.services import execution_store
+from app.models.execution import (
+    STATUS_FAILED,
+    STATUS_RUNNING,
+    STATUS_SUCCESS,
+    TRIGGER_SCHEDULED,
+)
+from app.services import execution_store, settings_store
 from app.services.pipeline import run_collection
 from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
+
+# SR-F-806. 정각 틱을 늦게 집었을 때 허용하는 지연.
+SCHEDULE_TOLERANCE_MINUTES = 5
 
 
 def run_collection_execution(
@@ -75,12 +84,51 @@ def start_scheduled_collection(user_id: str = DEFAULT_USER_ID, **kwargs) -> str 
         if active:
             logger.warning("진행 중인 실행 %s 이 있어 자동 실행을 건너뛴다", active)
             return None
-        execution = execution_store.create_queued(db, user_id)
+        execution = execution_store.create_queued(
+            db, user_id, trigger=TRIGGER_SCHEDULED
+        )
         execution_id = execution.id
 
     return run_collection_execution(execution_id, user_id=user_id, **kwargs)
 
 
+def should_run_now(
+    now_kst: datetime, hour: int, minute: int
+) -> tuple[bool, datetime]:
+    """지금이 자동 실행 시각인지와, 그 날의 예정 시각을 돌려준다 (SR-F-806).
+
+    예정 시각부터 TOLERANCE 분까지를 발화 구간으로 본다. 워커가 앞선 작업을
+    처리하느라 정각 틱을 늦게 집어도 그 날의 실행을 놓치지 않게 하기 위함이다.
+    """
+    scheduled = now_kst.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    within = scheduled <= now_kst < scheduled + timedelta(minutes=SCHEDULE_TOLERANCE_MINUTES)
+    return within, scheduled
+
+
+def tick_scheduled_collection(
+    user_id: str = DEFAULT_USER_ID, now_kst: datetime | None = None, **kwargs
+) -> str | None:
+    """분마다 호출되어 지금이 실행 시각인지 판단한다 (SR-F-801, 805, 806).
+
+    beat의 crontab을 고정하지 않고 매분 확인하는 이유는, 실행 시각을 화면에서
+    바꿀 수 있어야 하기 때문이다(SR-F-805). crontab은 beat 기동 시점에 굳는다.
+    """
+    now = now_kst or datetime.now(KST)
+
+    with SessionLocal() as db:
+        data = settings_store.load_settings(db, user_id)
+        within, scheduled = should_run_now(now, data.schedule_hour, data.schedule_minute)
+        if not within:
+            return None
+        # SR-F-806. 그 날 이미 자동 실행했으면 다시 하지 않는다.
+        since_utc = scheduled.astimezone(timezone.utc).replace(tzinfo=None)
+        if execution_store.scheduled_ran_since(db, since_utc, user_id):
+            return None
+
+    logger.info("자동 실행 시각 %s 도달", scheduled.strftime("%H:%M"))
+    return start_scheduled_collection(user_id, **kwargs)
+
+
 @celery_app.task(name="app.tasks.scheduled_collect")
 def scheduled_collect_task() -> str | None:
-    return start_scheduled_collection()
+    return tick_scheduled_collection()

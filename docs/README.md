@@ -71,12 +71,11 @@ poetry run celery -A app.worker.celery_app beat --loglevel=info
 Windows에서는 워커의 `-B` / `--beat` 옵션이 막혀 있어(`-B option does not work on Windows`)
 beat를 반드시 별도 프로세스로 띄워야 한다.
 
-시각은 루트 `.env`에서 바꾼다. 기본값은 한국 시간 08:00이다.
+**시각은 설정 화면에서 바꾼다** (SR-F-805). 기본값은 한국 시간 08:00이다.
+beat는 매분 틱만 보내고 지금이 실행 시각인지는 작업이 DB를 보고 판단하므로,
+시각을 바꿔도 beat를 다시 띄울 필요가 없다.
 
-```
-SCHEDULE_HOUR=8
-SCHEDULE_MINUTE=0
-```
+`.env`의 `SCHEDULE_HOUR` / `SCHEDULE_MINUTE`는 설정 행이 아직 없을 때의 초기값으로만 쓰인다.
 
 워커 없이 수집만 한 번 돌려보려면 (메일 발송 포함):
 

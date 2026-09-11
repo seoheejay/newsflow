@@ -33,12 +33,12 @@ celery_app.conf.update(
     task_acks_late=True,
 )
 
-# SR-F-801, 802. 매일 지정된 시각에 자동 실행한다.
+# SR-F-801, 805. 매분 틱을 보내고, 지금이 실행 시각인지는 태스크가 DB 설정을
+# 보고 판단한다. crontab에 시각을 굳히면 화면에서 시각을 바꿔도(SR-F-805)
+# beat를 다시 띄우기 전까지 반영되지 않는다.
 celery_app.conf.beat_schedule = {
-    "daily-collect": {
+    "schedule-tick": {
         "task": "app.tasks.scheduled_collect",
-        "schedule": crontab(
-            hour=settings.schedule_hour, minute=settings.schedule_minute
-        ),
+        "schedule": crontab(minute="*"),
     }
 }
