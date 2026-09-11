@@ -102,7 +102,8 @@ export async function runCollection(page, { onBadge } = {}) {
     await expect(page.locator('.badge', { hasText: /완료|실패/ }).first()).toBeVisible({
       timeout: 150_000,
     })
-  } catch (err) {
+  } catch {
+    // 원래 오류(타임아웃)보다 "워커가 떠 있는가"가 훨씬 흔한 원인이라 메시지를 바꿔 던진다.
     const last = (await badge.innerText().catch(() => '?')).trim()
     throw new Error(
       `수집이 끝나지 않았습니다 (마지막 상태: ${last}).\n` +
