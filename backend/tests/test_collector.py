@@ -11,6 +11,7 @@ import pytest
 
 from app.services.collector import (
     DEFAULT_RETRIES,
+    clean_title,
     NO_KEYWORD,
     CollectTarget,
     build_targets,
@@ -110,6 +111,48 @@ def test_SR_F_304_missing_published_date_keeps_item_with_none() -> None:
 
     assert len(out.items) == 1
     assert out.items[0].published_at is None
+
+
+ENTITY_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>&amp;quot;인용&amp;quot; 기사</title><link>https://example.com/q</link></item>
+  <item><title>A &amp;amp; B 그리고 &amp;apos;따옴표&amp;apos;</title><link>https://example.com/a</link></item>
+  <item><title>&amp;lt;태그&amp;gt; 이야기</title><link>https://example.com/t</link></item>
+</channel></rss>
+"""
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("&quot;인용&quot;", '"인용"'),
+        ("A &amp; B", "A & B"),
+        ("&lt;태그&gt;", "<태그>"),
+        ("&apos;작은따옴표&apos;", "'작은따옴표'"),
+        ("  공백 정리  ", "공백 정리"),
+        ("엔티티 없음", "엔티티 없음"),
+        (None, ""),
+        ("", ""),
+    ],
+)
+def test_SR_F_303_clean_title_resolves_entities_once(raw, expected: str) -> None:
+    assert clean_title(raw) == expected
+
+
+def test_SR_F_303_clean_title_does_not_unescape_twice() -> None:
+    # 두 번 풀면 `&lt;` 를 보여주려던 제목이 태그가 된다.
+    assert clean_title("&amp;lt;태그&amp;gt;") == "&lt;태그&gt;"
+
+
+def test_SR_F_303_entities_are_resolved_before_storing() -> None:
+    client = _client(lambda req: httpx.Response(200, content=ENTITY_RSS.encode()))
+    out = collect([_target("https://g.com/rss")], max_per_source=10, client=client)
+
+    assert [i.title for i in out.items] == [
+        '"인용" 기사',
+        "A & B 그리고 '따옴표'",
+        "<태그> 이야기",
+    ]
 
 
 def test_SR_F_305_items_carry_keyword_and_site() -> None:

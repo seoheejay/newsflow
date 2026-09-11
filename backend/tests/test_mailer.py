@@ -122,6 +122,31 @@ def test_SR_F_501_escapes_html_in_titles() -> None:
     assert "&lt;script&gt;" in html
 
 
+def test_SR_F_501_escapes_exactly_once() -> None:
+    """수집 시점에 엔티티를 이미 풀었으므로(collector.clean_title) 여기서는
+    한 번만 이스케이프한다. 두 번 하면 메일에 &quot; 가 눈에 보인다."""
+    html = render_html([_item(title='"인용" & <태그>')])
+
+    assert "&quot;인용&quot;" in html
+    assert "&amp;quot;" not in html  # 이중 이스케이프
+    assert "&amp; " in html  # & 는 한 번만
+    assert "&amp;amp;" not in html
+    assert "&lt;태그&gt;" in html
+    assert "&amp;lt;" not in html
+
+
+def test_SR_F_501_title_with_entities_reaches_the_reader_as_text() -> None:
+    # collector.clean_title 을 거친 제목이 메일에서 원문 그대로 보여야 한다.
+    from app.services.collector import clean_title
+
+    stored = clean_title("&quot;변우석 만나려면 앱으로&quot;⋯교촌")
+    html = render_html([_item(title=stored)])
+
+    assert stored == '"변우석 만나려면 앱으로"⋯교촌'
+    assert "&quot;변우석" in html
+    assert "&amp;quot;" not in html
+
+
 def test_SR_F_501_empty_title_has_a_placeholder() -> None:
     assert "(제목 없음)" in render_html([_item(title="")])
 

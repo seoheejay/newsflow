@@ -11,6 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from html import unescape
 
 import feedparser
 import httpx
@@ -145,6 +146,19 @@ def _published_at(entry) -> datetime | None:
     return None
 
 
+def clean_title(raw: str | None) -> str:
+    """SR-F-303. 제목을 평문으로 만든다.
+
+    feedparser가 XML 엔티티를 한 번 풀지만, 원본이 이중 인코딩된 피드에서는
+    `&quot;`나 `&apos;`가 문자열에 그대로 남는다. 그대로 저장하면 메일에서
+    한 번 더 이스케이프돼 `&quot;`가 눈에 보이고, 기사 목록 화면에서도
+    React가 문자열을 그대로 그려 같은 증상이 난다.
+
+    한 번만 푼다. 반복하면 원래 `&lt;` 를 보여주려던 제목까지 태그로 바뀐다.
+    """
+    return unescape(raw or "").strip()
+
+
 def _parse_entries(
     target: CollectTarget, body: bytes, max_per_source: int
 ) -> list[CollectedItem]:
@@ -158,7 +172,7 @@ def _parse_entries(
     items: list[CollectedItem] = []
     for entry in feed.entries:
         link = (getattr(entry, "link", "") or "").strip()
-        title = (getattr(entry, "title", "") or "").strip()
+        title = clean_title(getattr(entry, "title", None))
         if not link:
             # 링크가 없으면 중복 판단도 전달도 불가능하다.
             continue
