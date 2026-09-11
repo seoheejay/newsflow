@@ -195,3 +195,29 @@ feat/frontend-articles  프론트 작업
 | `-B option does not work on Windows` | beat를 별도 프로세스로 띄울 것 (7절) |
 | 수집 버튼을 눌러도 `queued`에서 멈춤 | Celery 워커가 안 떠 있음 (6절) |
 | 3307 포트 충돌 | 다른 MySQL 컨테이너 실행 중인지 확인 |
+| API 응답의 한글이 `ë°˜ë„ì²´` 처럼 깨짐 | PowerShell `Invoke-RestMethod` 문제. 아래 참조 |
+
+### API를 손으로 호출할 때
+
+**PowerShell `Invoke-RestMethod` 로 이 API를 호출하지 말 것.** PowerShell 5.1은 응답의
+`charset=utf-8` 을 무시하고 UTF-8 바이트를 Latin-1 로 디코딩한다. 읽기만 하면 화면에만
+깨져 보이지만, **읽은 값을 그대로 다시 PUT 하면 이중 인코딩된 값이 DB에 저장된다.**
+
+읽기만 확인할 때는 `curl.exe` 로 충분하고, 조회 후 수정해서 다시 보내는 스크립트는
+파이썬으로 쓴다.
+
+```python
+import json, urllib.request
+
+def call(method, path, body=None):
+    data = json.dumps(body, ensure_ascii=False).encode("utf-8") if body else None
+    req = urllib.request.Request(
+        "http://localhost:8000" + path, data=data, method=method,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        raw = resp.read()
+        return json.loads(raw.decode("utf-8")) if raw else None
+```
+
+브라우저(`fetch` + `res.json()`)는 규격대로 UTF-8을 처리하므로 화면에서는 문제가 없다.
