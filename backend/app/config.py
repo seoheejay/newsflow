@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # .env로 빼지 않는다 — pydantic-settings는 list[str] 환경변수를 JSON으로 파싱한다.
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # Celery 브로커 겸 결과 백엔드. docker-compose의 redis 컨테이너.
+    redis_url: str = "redis://127.0.0.1:6379/0"
+
     # SR-I-204 / SR-N-301: SMTP 접속 정보는 환경 변수로만 주입한다.
     # API 서버는 메일을 보내지 않으므로 선택값이다. 없으면 발송 시점에 실패한다.
     smtp_host: str | None = None
