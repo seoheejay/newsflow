@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from app.services.collector import (
+    DEFAULT_RETRIES,
     NO_KEYWORD,
     CollectTarget,
     build_targets,
@@ -276,7 +277,7 @@ def test_SR_F_404_collect_preserves_target_order() -> None:
     assert out.items[0].site == "느림"
 
 
-def test_SR_N_203_retry_is_off_by_default_and_opt_in() -> None:
+def test_SR_N_203_connect_error_is_retried_up_to_three_attempts() -> None:
     attempts = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -284,13 +285,74 @@ def test_SR_N_203_retry_is_off_by_default_and_opt_in() -> None:
         raise httpx.ConnectError("boom", request=request)
 
     collect([_target("https://g.com/rss")], max_per_source=10, client=_client(handler))
-    assert attempts["n"] == 1  # 기본값은 재시도 없음
+    assert attempts["n"] == 1 + DEFAULT_RETRIES  # 최초 1회 + 재시도 2회
 
-    attempts["n"] = 0
+
+def test_SR_N_203_transient_failure_recovers_on_retry() -> None:
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise httpx.ConnectError("일시적", request=request)
+        return httpx.Response(200, content=RSS.encode())
+
+    out = collect(
+        [_target("https://g.com/rss")], max_per_source=10, client=_client(handler)
+    )
+
+    assert attempts["n"] == 2
+    assert len(out.items) == 2
+    assert out.node_logs[0].error is None  # 복구됐으므로 실패가 아니다
+
+
+def test_SR_N_203_timeout_is_not_retried() -> None:
+    """SR-F-307(15초) × 3회 = 45초라 SR-N-101(30초)을 넘긴다. TBD-04의 해소."""
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        raise httpx.TimeoutException("timed out", request=request)
+
+    collect([_target("https://g.com/rss")], max_per_source=10, client=_client(handler))
+    assert attempts["n"] == 1
+
+
+@pytest.mark.parametrize("status", [404, 500, 503])
+def test_SR_N_203_http_errors_are_not_retried(status: int) -> None:
+    # 다시 걸어도 같은 답이 온다.
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(status)
+
+    collect([_target("https://g.com/rss")], max_per_source=10, client=_client(handler))
+    assert attempts["n"] == 1
+
+
+def test_SR_N_203_parse_failure_is_not_retried() -> None:
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(200, content=b"<<< not a feed")
+
+    collect([_target("https://g.com/rss")], max_per_source=10, client=_client(handler))
+    assert attempts["n"] == 1
+
+
+def test_SR_N_203_retries_can_be_disabled() -> None:
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        raise httpx.ConnectError("boom", request=request)
+
     collect(
         [_target("https://g.com/rss")],
         max_per_source=10,
-        retries=2,
+        retries=0,
         client=_client(handler),
     )
-    assert attempts["n"] == 3
+    assert attempts["n"] == 1

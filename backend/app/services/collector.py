@@ -24,6 +24,10 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 # SR-F-306. 동시 HTTP 요청 수 상한.
 MAX_CONCURRENCY = 3
 
+# SR-N-203. 재시도 2회 = 최대 3회 시도.
+DEFAULT_RETRIES = 2
+RETRY_BACKOFF_SECONDS = 0.3
+
 # SR-I-202. 대상 사이트가 누구의 요청인지 알 수 있어야 한다.
 USER_AGENT = "NewsFlow/0.1 (+https://github.com/seoheejay/newsflow)"
 
@@ -175,6 +179,19 @@ def _parse_entries(
     return items
 
 
+def _is_retryable(exc: Exception) -> bool:
+    """SR-N-203의 "일시적 네트워크 오류".
+
+    httpx.NetworkError는 연결·읽기·쓰기 실패로 빠르게 떨어지므로 다시 걸어볼
+    값어치가 있다. TimeoutException은 제외한다 - 15초(SR-F-307)를 세 번 기다리면
+    한 주소로 45초가 되어 12개 소스 30초(SR-N-101)를 넘긴다. 파싱 실패와
+    HTTP 4xx/5xx도 다시 걸어도 같은 답이 오므로 제외한다.
+    """
+    return isinstance(exc, httpx.NetworkError) and not isinstance(
+        exc, httpx.TimeoutException
+    )
+
+
 def _fetch_one(
     client: httpx.Client, target: CollectTarget, max_per_source: int, retries: int
 ) -> tuple[list[CollectedItem], NodeLog]:
@@ -188,8 +205,10 @@ def _fetch_one(
             items = _parse_entries(target, response.content, max_per_source)
         except Exception as exc:  # noqa: BLE001 - 주소 하나의 실패가 전체를 멈추면 안 된다
             last_error = exc
-            if attempt < retries:
+            if attempt < retries and _is_retryable(exc):
+                time.sleep(RETRY_BACKOFF_SECONDS)
                 continue
+            break
         else:
             elapsed = int((time.monotonic() - started) * 1000)
             return items, NodeLog(
@@ -227,7 +246,7 @@ def collect(
     max_per_source: int,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     max_concurrency: int = MAX_CONCURRENCY,
-    retries: int = 0,
+    retries: int = DEFAULT_RETRIES,
     client: httpx.Client | None = None,
 ) -> CollectOutcome:
     """SR-F-302~310. 주소 목록을 받아 항목과 주소별 로그를 돌려준다.
@@ -235,8 +254,7 @@ def collect(
     결과는 targets 순서를 유지한다. SR-F-404의 "최초 1건"이 동시 실행 순서에 따라
     달라지지 않도록 하기 위함이다.
 
-    retries의 기본값은 0이다. SR-N-203(최대 3회 재시도)은 이번 범위 밖이고,
-    15초 타임아웃(SR-F-307)과 곱해지면 12개 소스 30초(SR-N-101)를 넘긴다.
+    재시도는 연결 계열 오류에만 적용한다 (SR-N-203). _is_retryable 참고.
     """
     if not targets:
         return CollectOutcome()

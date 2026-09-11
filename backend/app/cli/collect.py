@@ -14,7 +14,11 @@ import sys
 from pathlib import Path
 
 from app.db import SessionLocal
-from app.services.collector import DEFAULT_TIMEOUT_SECONDS, MAX_CONCURRENCY
+from app.services.collector import (
+    DEFAULT_RETRIES,
+    DEFAULT_TIMEOUT_SECONDS,
+    MAX_CONCURRENCY,
+)
 from app.services.pipeline import run_collection
 
 
@@ -78,9 +82,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--retries",
         type=int,
-        default=0,
+        default=DEFAULT_RETRIES,
         metavar="N",
-        help="일시적 오류 재시도 횟수 (SR-N-203). 기본 0 — SR-N-101과 상충한다.",
+        help=f"연결 오류 재시도 횟수 (SR-N-203). 기본 {DEFAULT_RETRIES}. 타임아웃은 재시도하지 않는다.",
     )
     parser.add_argument(
         "--limit",
