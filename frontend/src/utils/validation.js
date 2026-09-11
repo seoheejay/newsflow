@@ -9,6 +9,8 @@ export const KEYWORD_MAX_COUNT = 20 // SR-F-102
 export const SUBJECT_MAX_LEN = 200 // SR-F-106
 export const MAX_PER_SOURCE_MIN = 1 // SR-F-105
 export const MAX_PER_SOURCE_MAX = 100 // SR-F-105
+export const SCHEDULE_HOUR_MAX = 23 // SR-F-805
+export const SCHEDULE_MINUTE_MAX = 59 // SR-F-805
 export const NAME_MAX_LEN = 64
 export const URL_TEMPLATE_MAX_LEN = 1000
 
@@ -34,6 +36,16 @@ export function validateSettings(form) {
   const n = Number(form.max_per_source)
   if (!Number.isInteger(n) || n < MAX_PER_SOURCE_MIN || n > MAX_PER_SOURCE_MAX) {
     errors.max_per_source = `${MAX_PER_SOURCE_MIN} 이상 ${MAX_PER_SOURCE_MAX} 이하의 정수여야 합니다`
+  }
+
+  // SR-F-805: 자동 실행 시각
+  const hour = Number(form.schedule_hour)
+  if (!Number.isInteger(hour) || hour < 0 || hour > SCHEDULE_HOUR_MAX) {
+    errors.schedule_hour = `0 이상 ${SCHEDULE_HOUR_MAX} 이하의 정수여야 합니다`
+  }
+  const minute = Number(form.schedule_minute)
+  if (!Number.isInteger(minute) || minute < 0 || minute > SCHEDULE_MINUTE_MAX) {
+    errors.schedule_minute = `0 이상 ${SCHEDULE_MINUTE_MAX} 이하의 정수여야 합니다`
   }
 
   if (form.keywords.length > KEYWORD_MAX_COUNT) {

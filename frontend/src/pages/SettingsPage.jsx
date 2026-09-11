@@ -6,15 +6,24 @@ import {
   KEYWORD_MAX_LEN,
   MAX_PER_SOURCE_MAX,
   MAX_PER_SOURCE_MIN,
+  SCHEDULE_HOUR_MAX,
+  SCHEDULE_MINUTE_MAX,
   SUBJECT_MAX_LEN,
   fieldErrorsFromApiError,
   validateKeyword,
   validateSettings,
 } from '../utils/validation.js'
 
-const EMPTY_FORM = { mail_subject: '', mail_to: '', max_per_source: 10, keywords: [] }
+const EMPTY_FORM = {
+  mail_subject: '',
+  mail_to: '',
+  max_per_source: 10,
+  schedule_hour: 8,
+  schedule_minute: 0,
+  keywords: [],
+}
 
-// SR-I-101: 키워드·메일 제목·수신자·최대 건수 입력. SR-I-106: 항목별 오류 표시.
+// SR-I-101: 키워드·메일 제목·수신자·최대 건수·자동 실행 시각 입력. SR-I-106: 항목별 오류 표시.
 export default function SettingsPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [keywordInput, setKeywordInput] = useState('')
@@ -32,6 +41,8 @@ export default function SettingsPage() {
           mail_subject: s?.mail_subject ?? '',
           mail_to: s?.mail_to ?? '',
           max_per_source: s?.max_per_source ?? 10,
+          schedule_hour: s?.schedule_hour ?? 8,
+          schedule_minute: s?.schedule_minute ?? 0,
           keywords: s?.keywords ?? [],
         })
         setLoading(false)
@@ -81,6 +92,8 @@ export default function SettingsPage() {
       mail_subject: form.mail_subject.trim(),
       mail_to: form.mail_to.trim(),
       max_per_source: Number(form.max_per_source),
+      schedule_hour: Number(form.schedule_hour),
+      schedule_minute: Number(form.schedule_minute),
       keywords: form.keywords,
     })
       .then((saved) => {
@@ -89,6 +102,8 @@ export default function SettingsPage() {
             mail_subject: saved.mail_subject ?? form.mail_subject,
             mail_to: saved.mail_to ?? form.mail_to,
             max_per_source: saved.max_per_source ?? form.max_per_source,
+            schedule_hour: saved.schedule_hour ?? form.schedule_hour,
+            schedule_minute: saved.schedule_minute ?? form.schedule_minute,
             keywords: saved.keywords ?? form.keywords,
           })
         }
@@ -151,6 +166,37 @@ export default function SettingsPage() {
             onChange={(e) => setField('max_per_source', e.target.value)}
             disabled={loading}
           />
+        </FormField>
+
+        <FormField
+          label="자동 실행 시각"
+          error={fieldErrors.schedule_hour ?? fieldErrors.schedule_minute}
+          hint="한국 시간 기준. 매일 이 시각에 자동으로 수집한다"
+        >
+          <div className="time-input">
+            <input
+              type="number"
+              min={0}
+              max={SCHEDULE_HOUR_MAX}
+              step={1}
+              aria-label="시"
+              value={form.schedule_hour}
+              onChange={(e) => setField('schedule_hour', e.target.value)}
+              disabled={loading}
+            />
+            <span className="time-input__sep">시</span>
+            <input
+              type="number"
+              min={0}
+              max={SCHEDULE_MINUTE_MAX}
+              step={1}
+              aria-label="분"
+              value={form.schedule_minute}
+              onChange={(e) => setField('schedule_minute', e.target.value)}
+              disabled={loading}
+            />
+            <span className="time-input__sep">분</span>
+          </div>
         </FormField>
 
         <FormField
