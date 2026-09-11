@@ -1,4 +1,5 @@
 // SR-F-602: 기본 20, 최대 100
+// SR-F-604: 수집 기간은 한국 시간 기준 일자다 (SRS 부록 A.2)
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 
 export default function ArticleFilters({
@@ -6,6 +7,8 @@ export default function ArticleFilters({
   sites,
   keyword,
   site,
+  dateFrom,
+  dateTo,
   itemsPerPage,
   onChange,
 }) {
@@ -36,6 +39,26 @@ export default function ArticleFilters({
             </option>
           ))}
         </select>
+      </label>
+
+      <label>
+        수집 시작
+        <input
+          type="date"
+          value={dateFrom}
+          max={dateTo || undefined}
+          onChange={(e) => onChange({ dateFrom: e.target.value })}
+        />
+      </label>
+
+      <label>
+        수집 종료
+        <input
+          type="date"
+          value={dateTo}
+          min={dateFrom || undefined}
+          onChange={(e) => onChange({ dateTo: e.target.value })}
+        />
       </label>
 
       <label>

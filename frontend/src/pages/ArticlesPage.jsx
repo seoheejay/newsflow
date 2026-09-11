@@ -10,7 +10,13 @@ import Pagination from '../components/Pagination.jsx'
 const EMPTY_PAGE = { total_count: 0, page: 1, items_per_page: 20, items: [] }
 
 export default function ArticlesPage() {
-  const [filters, setFilters] = useState({ keyword: '', site: '', itemsPerPage: 20 })
+  const [filters, setFilters] = useState({
+    keyword: '',
+    site: '',
+    dateFrom: '',
+    dateTo: '',
+    itemsPerPage: 20,
+  })
   const [page, setPage] = useState(1)
   const [refreshKey, setRefreshKey] = useState(0) // 수집 완료 후 재조회용
 
@@ -45,6 +51,8 @@ export default function ArticlesPage() {
         itemsPerPage: filters.itemsPerPage,
         keyword: filters.keyword,
         site: filters.site,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
       },
       { signal: controller.signal },
     )
@@ -76,6 +84,8 @@ export default function ArticlesPage() {
         sites={siteOptions}
         keyword={filters.keyword}
         site={filters.site}
+        dateFrom={filters.dateFrom}
+        dateTo={filters.dateTo}
         itemsPerPage={filters.itemsPerPage}
         onChange={handleFilterChange}
       />
