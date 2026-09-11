@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.errors import register_error_handlers
-from app.routers import feed_sources, stubs
+from app.routers import executions, feed_sources, stubs
 
 
 def create_app() -> FastAPI:
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
 
     register_error_handlers(app)
     app.include_router(feed_sources.router)
+    app.include_router(executions.router)
     app.include_router(stubs.router)
     return app
 

@@ -44,19 +44,4 @@ def get_articles(
     }
 
 
-@router.post("/collect", status_code=202)  # TODO(SR-F-701): 수집 실행 요청
-def collect() -> dict:
-    return {"execution_id": "dummy", "status": "queued"}
-
-
-@router.get("/executions/{execution_id}")  # TODO(SR-F-706): 실행 상태 조회
-def get_execution(execution_id: str) -> dict:
-    return {
-        "id": execution_id,
-        "status": "success",
-        "started_at": None,
-        "finished_at": None,
-        "collected_count": 0,
-        "new_count": 0,
-        "error": None,
-    }
+# /collect 와 /executions 는 app/routers/executions.py 로 옮겼다 (SR-F-701~707).

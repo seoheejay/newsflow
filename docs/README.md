@@ -48,7 +48,24 @@ poetry run uvicorn main:app --reload
 
 http://localhost:8000/docs 접속해서 엔드포인트가 보이면 정상.
 
-### 6. 프론트엔드
+### 6. Celery 워커
+
+수집 실행(`POST /collect`)을 처리한다. 백엔드와 별도 창에서 띄운다.
+
+```
+cd backend
+poetry run celery -A app.worker.celery_app worker --loglevel=info --pool=solo
+```
+
+`--pool=solo`는 Windows에서 필수다. 기본 prefork 풀은 `fork()`에 기대는데 Windows에는 없다.
+
+워커 없이 수집만 돌려보려면 (메일 발송 포함):
+
+```
+poetry run python -m app.cli.collect --keyword AI --store --send
+```
+
+### 7. 프론트엔드
 
 ```
 cd frontend
