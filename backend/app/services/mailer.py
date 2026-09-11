@@ -12,14 +12,11 @@ from datetime import timezone
 from email.message import EmailMessage
 from email.utils import formataddr
 from html import escape
-from zoneinfo import ZoneInfo
 
+from app.clock import KST
 from app.config import Settings, settings as default_settings
 from app.errors import EmailSendFailedError
 from app.services.collector import CollectedItem
-
-# SR-F-504. 표시 시점에만 변환하고 보관은 UTC다 (SR-D-203).
-KST = ZoneInfo("Asia/Seoul")
 
 SMTP_TIMEOUT_SECONDS = 30
 
