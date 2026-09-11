@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # Celery 브로커 겸 결과 백엔드. docker-compose의 redis 컨테이너.
     redis_url: str = "redis://127.0.0.1:6379/0"
 
+    # SR-F-802. 자동 실행 시각. 기본값은 Asia/Seoul 08:00.
+    schedule_hour: int = 8
+    schedule_minute: int = 0
+
     # SR-I-204 / SR-N-301: SMTP 접속 정보는 환경 변수로만 주입한다.
     # API 서버는 메일을 보내지 않으므로 선택값이다. 없으면 발송 시점에 실패한다.
     smtp_host: str | None = None

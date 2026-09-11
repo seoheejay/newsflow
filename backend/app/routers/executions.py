@@ -10,11 +10,11 @@ from app.clock import utcnow
 from app.constants import DEFAULT_USER_ID
 from app.db import get_db
 from app.errors import ErrorResponse, ExecutionInProgressError, NotFoundError
-from app.ids import new_ulid
 from app.models import Execution
-from app.models.execution import ACTIVE_STATUSES, STATUS_FAILED, STATUS_QUEUED
+from app.models.execution import STATUS_FAILED
 from app.schemas.common import ListResponse
 from app.schemas.execution import CollectAccepted, ExecutionDetail, ExecutionSummary
+from app.services import execution_store
 from app.tasks import collect_task
 
 logger = logging.getLogger(__name__)
@@ -34,25 +34,10 @@ router = APIRouter(tags=["executions"])
 def request_collection(db: Session = Depends(get_db)) -> CollectAccepted:
     """SR-F-701. 처리 완료를 기다리지 않고 즉시 응답한다 (SR-N-102, 1초 이내)."""
     # SR-F-705. 진행 중인 실행이 있으면 409.
-    in_progress = db.scalar(
-        select(Execution.id).where(
-            Execution.user_id == DEFAULT_USER_ID,
-            Execution.status.in_(ACTIVE_STATUSES),
-        )
-    )
-    if in_progress:
+    if execution_store.find_active_id(db, DEFAULT_USER_ID):
         raise ExecutionInProgressError()
 
-    execution = Execution(
-        id=new_ulid(),
-        status=STATUS_QUEUED,
-        started_at=utcnow(),
-        collected_count=0,
-        new_count=0,
-        user_id=DEFAULT_USER_ID,
-    )
-    db.add(execution)
-    db.commit()
+    execution = execution_store.create_queued(db, DEFAULT_USER_ID)
 
     try:
         collect_task.delay(execution.id)

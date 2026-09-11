@@ -59,13 +59,32 @@ poetry run celery -A app.worker.celery_app worker --loglevel=info --pool=solo
 
 `--pool=solo`는 Windows에서 필수다. 기본 prefork 풀은 `fork()`에 기대는데 Windows에는 없다.
 
-워커 없이 수집만 돌려보려면 (메일 발송 포함):
+### 7. Celery beat (자동 실행)
+
+매일 정해진 시각에 수집을 실행한다. **또 다른 창**에서 띄운다.
+
+```
+cd backend
+poetry run celery -A app.worker.celery_app beat --loglevel=info
+```
+
+Windows에서는 워커의 `-B` / `--beat` 옵션이 막혀 있어(`-B option does not work on Windows`)
+beat를 반드시 별도 프로세스로 띄워야 한다.
+
+시각은 루트 `.env`에서 바꾼다. 기본값은 한국 시간 08:00이다.
+
+```
+SCHEDULE_HOUR=8
+SCHEDULE_MINUTE=0
+```
+
+워커 없이 수집만 한 번 돌려보려면 (메일 발송 포함):
 
 ```
 poetry run python -m app.cli.collect --keyword AI --store --send
 ```
 
-### 7. 프론트엔드
+### 8. 프론트엔드
 
 ```
 cd frontend
@@ -174,4 +193,6 @@ feat/frontend-articles  프론트 작업
 | `res.json()`에서 에러 | 204 응답은 본문이 없음 |
 | 필드가 undefined | snake_case 확인 |
 | Celery 워커가 안 돎 | Windows는 `--pool=solo` 필요 |
+| `-B option does not work on Windows` | beat를 별도 프로세스로 띄울 것 (7절) |
+| 수집 버튼을 눌러도 `queued`에서 멈춤 | Celery 워커가 안 떠 있음 (6절) |
 | 3307 포트 충돌 | 다른 MySQL 컨테이너 실행 중인지 확인 |

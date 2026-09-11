@@ -13,6 +13,7 @@ from app.constants import DEFAULT_USER_ID
 from app.db import SessionLocal
 from app.models import Execution
 from app.models.execution import STATUS_FAILED, STATUS_RUNNING, STATUS_SUCCESS
+from app.services import execution_store
 from app.services.pipeline import run_collection
 from app.worker import celery_app
 
@@ -60,3 +61,26 @@ def run_collection_execution(
 @celery_app.task(name="app.tasks.collect")
 def collect_task(execution_id: str) -> str:
     return run_collection_execution(execution_id)
+
+
+def start_scheduled_collection(user_id: str = DEFAULT_USER_ID, **kwargs) -> str | None:
+    """SR-F-801, 803, 804. 자동 실행 한 번.
+
+    수동 실행과 같은 함수(run_collection_execution)를 쓰고 실행 이력도 같은
+    표에 남는다. 다른 점은 진행 중일 때의 처리뿐이다 - 수동 실행은 409로
+    알려줄 상대가 있지만 스케줄러는 없으므로 조용히 건너뛴다.
+    """
+    with SessionLocal() as db:
+        active = execution_store.find_active_id(db, user_id)
+        if active:
+            logger.warning("진행 중인 실행 %s 이 있어 자동 실행을 건너뛴다", active)
+            return None
+        execution = execution_store.create_queued(db, user_id)
+        execution_id = execution.id
+
+    return run_collection_execution(execution_id, user_id=user_id, **kwargs)
+
+
+@celery_app.task(name="app.tasks.scheduled_collect")
+def scheduled_collect_task() -> str | None:
+    return start_scheduled_collection()
